@@ -1,0 +1,222 @@
+---
+title: "Wildfires in the United States"
+author: "By: Benn Jesser"
+date: 'November 24th, 2020'
+output: html_document
+---
+
+![Beach Fire, Mono Lake,CA. By Dominick Holden](FB_IMG_1597711195229.jpg )
+
+```{r echo=FALSE}
+library(pacman)
+p_load(rvest,dplyr,readxl,ggplot2,usmap,scales,ggthemes,ggpmisc,gridExtra)
+setwd('C:/Users/Richard/Desktop/523')
+```
+```{r, include= F }
+knitr::opts_chunk$set(echo=F,warning = F, message = F)
+```
+<br />
+
+During the summer of 2020, I worked on a wildland firefighting crew based out of Eugene, OR. This experience was one to remember. Wildland firefighting has to be one of the most difficult jobs. Grueling work, long hours,little sleep and being away from home for weeks are just a few of the things you must get used to. As a rookie, I had a lot to learn. Luckily, there were many veteran firefighters on my crew with decades of experience. One observation shared by all the veteran firefighters was that things were different than when they started. They said fires were larger, moved faster and the season had become longer. Coworkers also shared that they now expect to spend most of the season working in California and increasingly in wildland urban interface settings. Anecdotally, I have noticed that smoke filling the Willamette Valley has become a more and more frequent occurrence in the summer. This piqued my curiosity into how wildfires in the U.S. have changed over time and what the future will hold? To get a broad picture of my question, I used the National Interagency Fire Agency’s (NIFC) data on national wildland fire acreage totals per year and put in a simple linear regression line.
+<br />
+
+```{r}
+yearly_totals <- read_html('https://www.nifc.gov/fireInfo/fireInfo_stats_totalFires.html')
+yearly_totals <- yearly_totals %>%
+  html_nodes('table')%>%
+  html_table()%>%
+  .[[1]]%>%
+  slice(-c(1,2,3,19)) %>%
+  rename(year = X1, fires = X2, acres = X3)%>%
+  mutate(fires=gsub(',','',fires),acres=gsub(',','',acres),acres=gsub('*','',acres))%>%
+  mutate_at('fires',as.numeric)%>%
+  mutate_at('acres',as.numeric)%>%
+  mutate_at('year',as.numeric)%>%
+  add_row(year= 2020, fires=49815, acres=8750197, .before=1)%>%
+  add_row(year= 2004, fires=65461	, acres=8097880, .before=17)%>%
+  slice(-c(96))%>%
+  mutate(avg_fire_acreage=acres/fires)
+
+ggplot(yearly_totals, aes(year,acres))+
+  geom_point()+
+  geom_smooth(method = 'lm',se = F)+
+  scale_y_continuous(labels = comma)+
+  theme_economist()+
+  labs(title = 'Total Acres Burned in U.S. Per Year',
+       x = "Year",y='Acres' )+
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 5, r = 10, b = 0, l = 0)))
+```
+<br />
+
+This graph was very surprising to me. The acreage totals, recorded from 1925 to 1960, were far higher than that of the past 70 years. I decided to look into the history of the data and how it was collected in this period to possibly explain it. NIFC spokesman Randy Eardley said:
+
+>> I wouldn’t put any stock in those numbers. To try and compare any of the more modern data to that    earlier data is not accurate or appropriate, because we didn’t have a good way to measure [earlier data]. Back then we didn’t have a reliable reporting system; for all I know those came from a variety of different sources that often double-counted figures. When you look at some of those years that add up to 60 or 70 million acres burned a lot of those acres have to be double counted two or three times. We didn’t have a system to estimate the area burned until 1960, but it was really refined in 1983 (1).
+>>
+
+This helps bring context to the data collected before 1960. If we look at the same graphs, but from 1960 to present and from 1983 to present, things become more clear.
+<br />
+
+```{r}
+yearly_totals1960 <- yearly_totals%>% filter(year>=1960)
+plot1 <- ggplot(yearly_totals1960, aes(year,acres))+
+  geom_point()+
+  geom_smooth(method = 'lm',se = F)+
+  scale_y_continuous(labels = comma)+
+  theme_economist()+
+  labs(subtitle = 'Acres Burned after 1960 Per Year',
+       x = "Year",y='Acres' )+
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 5, r = 10, b = 0, l = 0)))
+
+yearly_totals1983 <- yearly_totals%>% filter(year>=1983)
+plot2 <-ggplot(yearly_totals1983, aes(year,acres))+
+  geom_point()+
+  geom_smooth(method = 'lm',se = F)+
+  scale_y_continuous(labels = comma)+
+  theme_economist()+
+  labs(subtitle = 'Acres Burned after 1983 Per Year',
+       x = "Year",y='Acres' )+
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 5, r = 10, b = 0, l = 0)))
+grid.arrange(plot1, plot2, ncol=2)
+```
+<br />
+
+The graphs now appear to be describing what veteran firefighters had told me. More acres are burning per year on average. What about the veteran firefighters telling me that fires were not just getting worse but getting bigger as well? To visualize this I decided to graph the average acreage per fire over time.
+<br />
+
+```{r}
+ggplot(yearly_totals1983, aes(year,avg_fire_acreage ))+
+  geom_point()+
+  geom_smooth(method = 'lm',se = F)+
+  scale_y_continuous(labels = comma)+
+  theme_economist()+
+  labs(subtitle = 'Average Acreage Per Wildfire After 1983',
+       x = "Year",y='Average Acreage' )+
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 5, r = 10, b = 0, l = 0)))
+```
+<br />
+
+As seen in the average acreage per fire graphs above, the average fire is actually quite small. This was surprising to me because the fires I worked on were in the tens of thousands of acres. Moreover, the other crews in the company worked on 100,000+ acre fires. For example, the August Complex wildland fire burned over a million acres. Using data from the NFIC on fires over 100,000 acres, I decided to see if the general trends were true for large wildfires as well. Unfortunately the NFIC only had data dating back to 1997, but the analysis is still of interest.
+<br />
+
+```{r}
+hundredk_fires <- read_html('https://www.nifc.gov/fireInfo/fireInfo_stats_lgFires.html')
+hundredk_fire_table <- hundredk_fires %>% 
+  html_nodes('table') %>%
+  html_table() %>% 
+  .[[1]] %>%
+  slice(-c(1,2,3)) %>%
+  rename(year = X1, fire_name = X2, state = X3, total_acres = X4) %>%
+  mutate(total_acres =gsub(',','',total_acres))%>%
+  mutate_at('year',as.numeric)%>%
+  mutate_at('total_acres',as.numeric)%>%
+  mutate(state =replace(state,state=='A','AK'))%>%
+  add_row(year= 2020, fire_name='August Complex',state = 'CA', total_acres=1032648, .before=1)%>%
+  add_row(year= 2020, fire_name='SCU Complex',state ='CA', total_acres=396624, .before=1)%>%
+  add_row(year= 2020, fire_name='Creek',state = 'CA',total_acres=379895, .before=1)%>%
+  add_row(year= 2020, fire_name='LNU Complex',state ='CA' ,total_acres=363220, .before=1)%>%
+  add_row(year= 2020, fire_name='North Complex',state ='CA' ,total_acres=318935, .before=1)%>%
+  add_row(year= 2020, fire_name='SQF Complex',state ='CA' ,total_acres=174178, .before=1)%>%
+  add_row(year= 2020, fire_name='Slater/Devil',state = 'OR',total_acres=166127, .before=1)%>%
+  add_row(year= 2020, fire_name='Red Salmon Complex',state ='CA' ,total_acres=144698, .before=1)%>%
+  add_row(year= 2020, fire_name='Dolan/Coleman',state ='CA' ,total_acres=124924, .before=1)%>%
+  add_row(year= 2020, fire_name='Bobcat',state = 'CA',total_acres=115997, .before=1)%>%
+  add_row(year= 2020, fire_name='Santiam',state = 'OR',total_acres=402592, .before=1)%>%
+  add_row(year= 2020, fire_name='Holiday Farm',state = 'OR',total_acres=173393, .before=1)%>%
+  add_row(year= 2020, fire_name='Riverside',state = 'OR',total_acres=138054, .before=1)%>%
+  add_row(year= 2020, fire_name='Archie Creek',state = 'OR',total_acres=131542, .before=1)%>%
+  add_row(year= 2020, fire_name='Cameron Peak',state = 'CO',total_acres=208663, .before=1)%>%
+  add_row(year= 2020, fire_name='East Troublesome',state = 'CO',total_acres=192560, .before=1)%>%
+  add_row(year= 2020, fire_name='Mullen',state = 'CO',total_acres=176878, .before=1)%>%
+  add_row(year= 2020, fire_name='Pine Gulch',state = 'CO',total_acres=139007, .before=1)%>%
+  add_row(year= 2020, fire_name='Pearl Hill',state = 'WA',total_acres=223730, .before=1)%>%
+  add_row(year= 2020, fire_name='Mullen',state = 'CO',total_acres=176878, .before=1)%>%
+  add_row(year= 2020, fire_name='Cold Springs',state = 'WA',total_acres=189923, .before=1)%>%
+  add_row(year= 2020, fire_name='Whitney',state = 'WA',total_acres=127430, .before=1)
+  
+plot3<-ggplot(hundredk_fire_table,aes(year)) +
+  geom_histogram()+
+  theme_economist()+
+  labs(subtitle = 'Number of 100,000+ Acre Wilfires by Year',
+       x="Year",y= '100,000+ Acre Fires')+
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 5, r = 10, b = 0, l = 0)))
+  
+plot4<-ggplot(hundredk_fire_table,aes(year)) +
+  geom_histogram(aes(y = ..density..), fill = "#333333") + 
+  geom_density(fill = "#ff4d4d", alpha = 0.5) + 
+  theme_economist()+
+  labs(
+       x="Year",y= 'Density')+
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 5, r = 10, b = 0, l = 0)))
+grid.arrange(plot3, plot4, ncol=2)
+```
+<br />
+
+Even with the limited data, we can see a trend of an increase in 100,000+ acre wildfires in the last 23 years. 2020 had the most 100,000+ acre fires, totalling 23. At many points over the summer, veteran firefighters said they had never seen anything like this. The sheer number of large fires was unprecedented. During August, at the peak of fire season on the West Coast, there were no available resources to respond if a new fire started. On all but 1 of the 5 fires my crew was sent to, we were reassigned during the fire because a new fire had started that was of a greater threat. Many times these reassignments would come after a 16 hour shift and would require rolling over to 24 or, in one case, a 36 hour shift. The lack of resources was in part caused by the lack of many prison crews highly utilized by California’s CalFire due to Covid-19. These prison crews are morally problematic, grossly underpaid and have little to no opportunity to continue a career as a firefighter after release, even with extensive experience. I was also interested in where these large 100,000+ acre wildfires were occurring. Below is a graph of the number of 100,000+ acre fires in each state.
+<br />
+
+```{r}
+numberinstate <- hundredk_fire_table %>% group_by(state)%>%
+  tally()
+plot_usmap( data  = numberinstate,values  = 'n',color = "red") + 
+  scale_fill_continuous(
+    low = "white", high = "red", name = "100K+ acre fires since 1997", label = scales::comma
+  ) + theme(legend.position = "right")
+numberinstate2010 <- hundredk_fire_table %>% group_by(state)%>%filter(year>=2010)%>%
+  tally()
+plot_usmap( data  = numberinstate2010,values  = 'n',color = "red") + 
+  scale_fill_continuous(
+    low = "white", high = "red", name = "100K+ acre fires since 2010", label = scales::comma
+  ) + theme(legend.position = "right")
+
+
+```
+<br />
+These maps show us Alaska, California, Oregon, Nevada and Idaho have been the hardest hit by large wildfires. Disturbingly, in the last 10 years, California has had only 4 fewer 100,000+ acres wildfires than Alaska . This is very worrying considering the population of California and how much smaller it is geographically than Alaska. Oregon and Idaho have also had a worrying number of 100,000+ acres wildfires, with 16 and 14, respectively, since 2010. 
+<br />
+
+![Beach Fire, Mono Lake,CA. By Benn Jesser](20200817_054736.jpg)
+<br />
+
+As soon as I arrived at my first fire camp, where firefighters and overhead sleep, eat and have briefings, the scale amazed me. This was a relatively small fire, but the number of resources was mind blowing, taking up an entire fairgrounds and an airport. My first thought was how much does all this cost? Well the answer is a lot! 2018 was the most expensive year for Federal firefighting suppression, costing $3,143,256,000. Suppression includes all expenditures that go into actively fighting fires. Below is a graph of the Federal expenditures of wildland fire suppression by year and does not account for state expenditures. 
+	
+<br />
+
+```{r}
+SuppCosts <- read_excel("SuppCosts.xlsx", 
+                        col_types = c("numeric", "numeric", "numeric", 
+                                      "numeric", "numeric", "numeric"))
+SuppCosts <- SuppCosts %>%
+  slice(-c(1,2,38,39)) %>%
+  rename(year = c(1), fires = c(2), acres = c(3), forest_service = c(4),doi_agencies = c(5), total= c(6) )
+
+ggplot(SuppCosts, aes(year,total))+
+  geom_point()+
+  geom_smooth(method = 'lm',se = F)+
+  scale_y_continuous(labels = comma)+
+  theme_economist()+
+  labs(title = 'Federal Firefighting Suppression Cost by Year',
+       x = "Year",y='USD' )
+```
+<br />
+
+Suppression costs are growing at an incredible rate. This further reinforces the idea that things have changed and wildfires are becoming an ever growing problem. The suppression cost only represents a fraction of the total cost of wildfires. Property, environmental, health and human life all represent other enormous costs of destructive wildfires. If the current trends continue and wildfires grow in size and in frequency, it will negatively affect huge populations in the West. Due to drought, rising temperatures, and sprawling development, wildfires will be an ever growing part of our lives. This problem, like many climate induced natural disasters, needs immediate action. This includes the reintroduction of Indigenous methods of forest management, such as prescribed burns to reduce fuels and by replacing deteriorated and dangerous power lines. These preventative actions to help prevent wildfires will not be cheap or easy, but with the current trends we are seeing, we do not have a choice. I realized early on that, while we were called wildland firefighters, there was no fight. The fire won every time and the best we could do was slow it down till the weather was on our side. If we want to actually fight wildfires we need an enormous investment in prevention.
+
+<br />
+
+
+
+Works Cited:
+\n 
+Hausfather, Zeke. “Factcheck: How Global Warming Has Increased US Wildfires.” Carbon Brief, 20 Aug. 2018, www.carbonbrief.org/factcheck-how-global-warming-has-increased-us-wildfires. 
+<br />
+\n 
+“Wildland Fire Statistics.” National Interagency Fire Center, www.nifc.gov/fireInfo/fireInfo_statistics.html. 
+
+
+
